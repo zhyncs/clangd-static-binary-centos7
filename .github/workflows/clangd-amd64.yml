@@ -1,0 +1,45 @@
+name: clangd amd64
+
+on: workflow_dispatch
+
+jobs:
+  build:
+    name: Run on CentOS 7
+    runs-on: ubuntu-latest
+    container:
+      image: "centos:7"
+
+    steps:
+        - name: Build
+          run: |
+              yum install centos-release-scl -y
+              yum install devtoolset-10 -y
+              yum install python3 -y
+              yum install zlib -y
+              yum install wget -y
+              wget -c -t 3 https://github.com/Kitware/CMake/releases/download/v3.29.0-rc2/cmake-3.29.0-rc2-linux-x86_64.tar.gz
+              tar xf cmake-3.29.0-rc2-linux-x86_64.tar.gz
+              mv cmake-3.29.0-rc2-linux-x86_64 /usr/local/cmake
+              wget -c -t 3 https://github.com/ninja-build/ninja/releases/download/v1.11.1/ninja-linux.zip
+              unzip ninja-linux.zip
+              mv ninja /usr/local/bin
+              wget -c -t 3 https://github.com/llvm/llvm-project/releases/download/llvmorg-17.0.6/llvm-project-17.0.6.src.tar.xz
+              tar xf llvm-project-17.0.6.src.tar.xz
+              cd llvm-project-17.0.6.src
+              mkdir build
+              cd build
+              export PATH=/opt/rh/devtoolset-10/root/usr/bin:/usr/local/cmake/bin:$PATH && cmake -G Ninja -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_PROJECTS='clang;clang-tools-extra' ../llvm && cmake --build . --target clangd -j$(nproc)
+        - name: Create Release
+          uses: actions/create-release@v1
+          env:
+              GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+          with:
+              tag_name: 2024.02.25
+              release_name: 17.0.6
+        - name: Upload Release
+          uses: softprops/action-gh-release@v1
+          env:
+              GITHUB_TOKEN: ${{ secrets.REPO_TOKEN }}
+          with:
+              tag_name: 2024.02.25
+              files: /__w/clangd-static-binary-centos7/clangd-static-binary-centos7/llvm-project-17.0.6.src/build/bin/clangd
